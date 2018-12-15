@@ -17,6 +17,7 @@ ssl = os.getenv('ssl',False)
 class Connection():
 
     def _create_connection(self):
+        credentials = parameters = None
         try:
             credentials = pika.PlainCredentials(username, password)
             parameters = pika.ConnectionParameters(hostname,port, vhost, credentials, ssl=ssl)
@@ -31,16 +32,22 @@ class Connection():
 class Publisher:
 
     def publish(self, message):
+        connection = rabConn = connection = channel = None
         try:
             rabConn = Connection()
             connection = rabConn._create_connection()
             channel = connection.channel()
             channel.exchange_declare(exchange=exchange, passive=True)
-            channel.basic_publish(exchange=exchange,
+            if channel.basic_publish(exchange=exchange,
                                       routing_key=routeKey,
-                                      body=message)
-    
-            print(" [x] Sent message %r" % message)
+                                      body=message,
+                                      properties=pika.BasicProperties(content_type='text/plain',
+                                      delivery_mode=1), 
+                                      mandatory=True) :    
+                print(" [x] Sent message %r" % message)
+                return True
+            else:
+                return False
         except Exception as e:
             print(repr(e))
             traceback.print_exc()
@@ -49,8 +56,4 @@ class Publisher:
             if connection:
                 connection.close()
             del rabConn, connection, channel
-
-class Subscriber:
-    
-    def subscribe(self):
-        print("hi there")
+            

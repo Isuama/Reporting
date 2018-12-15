@@ -4,6 +4,7 @@ import redis
 
 app = Flask(__name__)
 default_key = '1'
+
 cache = redis.StrictRedis(host='localhost', port=6379, db=0)
 cache.set(default_key, "one")
 
@@ -15,14 +16,29 @@ def mainpage():
         key = request.form['key']
 
     if request.method == 'POST' and request.form['submit'] == 'save':
-        cache.set(key, request.form['cache_value'])
-        pub = rabbit.Publisher()
-        pub.publish("hi there")
-        # Destroy references
-        del pub
-        
+        try:
+            cache.set(key, request.form['cache_value'])
+            print("key : %r saved in cache" % key)
+            print("value : %r saved in cache" % request.form['cache_value'])
+        except:
+            print('could not connect with Redis server')
+            return render_template('index.html')
+
+        pub = None
+        try:
+            pub = rabbit.Publisher()
+            if pub.publish(cache.get(key).decode('utf-8')):
+                print('Message was published')
+            else:
+                print('Message was returned')
+        except:
+            print('Message was returned')
+        finally:
+            # Destroy references
+            del pub
+
     cache_value = None
-    if key in cache:
+    if cache and key in cache:
         cache_value = cache.get(key).decode('utf-8')
 
     return render_template('index.html', key=key, cache_value=cache_value)
